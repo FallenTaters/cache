@@ -49,7 +49,13 @@ func NoError(t *testing.T, err error, messages ...string) {
 
 func ErrorIs(t *testing.T, target error, err error, messages ...string) {
 	t.Helper()
+
 	if errors.Is(err, target) {
+		return
+	}
+
+	if err == nil {
+		t.Errorf(`%serror should have error %q in its chain but is nil`, formatMessages(messages), target)
 		return
 	}
 
@@ -59,6 +65,11 @@ func ErrorIs(t *testing.T, target error, err error, messages ...string) {
 func ErrorAs(t *testing.T, target any, err error, messages ...string) {
 	t.Helper()
 	if errors.As(err, target) {
+		return
+	}
+
+	if err == nil {
+		t.Errorf(`%serror should have error of type %T in its chain but is nil`, formatMessages(messages), target)
 		return
 	}
 

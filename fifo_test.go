@@ -10,23 +10,26 @@ import (
 )
 
 func newFIFO() cache.Cache[int, int] {
-	return cache.FIFO(2, func(i int) (int, error) {
-		return i, nil
-	})
+	return cache.FIFO[int, int](2)
+}
+
+func newAddFunc(x int, err error) func() (int, error) {
+	return func() (int, error) {
+		return x, err
+	}
+}
+
+func calledAddFunc(x int, err error) (func() (int, error), *bool) {
+	var called bool
+	return func() (int, error) {
+		called = true
+		return 0, nil
+	}, &called
 }
 
 const concurrentCount = 10_000
 
 func TestFIFO(t *testing.T) {
-	t.Run(`nil func passend`, func(t *testing.T) {
-		defer func() {
-			v := recover()
-			assert.Equal(t, `nil addFunc passed`, v.(string))
-		}()
-
-		cache.FIFO[int, int](1, nil)
-	})
-
 	t.Run(`get non-existing`, func(t *testing.T) {
 		c := newFIFO()
 
@@ -38,7 +41,7 @@ func TestFIFO(t *testing.T) {
 	t.Run(`get existing`, func(t *testing.T) {
 		c := newFIFO()
 
-		v, err := c.GetOrAdd(1)
+		v, err := c.GetOrAdd(1, newAddFunc(1, nil))
 		assert.Equal(t, 1, v)
 		assert.NoError(t, err)
 
@@ -50,9 +53,9 @@ func TestFIFO(t *testing.T) {
 	t.Run(`only get recently added`, func(t *testing.T) {
 		c := newFIFO()
 
-		c.GetOrAdd(1)
-		c.GetOrAdd(2)
-		c.GetOrAdd(3)
+		c.GetOrAdd(1, newAddFunc(1, nil))
+		c.GetOrAdd(2, newAddFunc(2, nil))
+		c.GetOrAdd(3, newAddFunc(3, nil))
 
 		v, ok := c.Get(1)
 		assert.Equal(t, 0, v)
@@ -69,11 +72,9 @@ func TestFIFO(t *testing.T) {
 
 	t.Run(`return error`, func(t *testing.T) {
 		myErr := errors.New(`myErr`)
-		c := cache.FIFO(3, func(i int) (int, error) {
-			return 0, myErr
-		})
+		c := newFIFO()
 
-		_, err := c.GetOrAdd(1)
+		_, err := c.GetOrAdd(1, newAddFunc(0, myErr))
 		assert.ErrorIs(t, myErr, err)
 	})
 
@@ -84,44 +85,28 @@ func TestFIFO(t *testing.T) {
 			assert.ErrorIs(t, myErr, v.(error))
 		}()
 
-		c := cache.FIFO(3, func(i int) (int, error) {
-			return 0, myErr
-		})
+		c := newFIFO()
 
-		c.MustGetOrAdd(1)
+		c.MustGetOrAdd(1, newAddFunc(0, myErr))
 	})
 
 	t.Run(`only call addFunc when necessary`, func(t *testing.T) {
-		called := false
-		c := cache.FIFO(3, func(i int) (int, error) {
-			called = true
-			return i, nil
-		})
-
-		c.MustGetOrAdd(1)
-		assert.True(t, called)
-
-		called = false
-		c.MustGetOrAdd(1)
-		assert.False(t, called)
-	})
-
-	t.Run(`get empty`, func(t *testing.T) {
 		c := newFIFO()
 
-		c.GetOrAdd(1)
+		addFunc, called := calledAddFunc(1, nil)
 
-		v := c.GetOrEmpty(1)
-		assert.Equal(t, 1, v)
+		c.MustGetOrAdd(1, addFunc)
+		assert.True(t, *called)
 
-		v = c.GetOrEmpty(2)
-		assert.Equal(t, 0, v)
+		*called = false
+		c.MustGetOrAdd(1, addFunc)
+		assert.False(t, *called)
 	})
 
 	t.Run(`delete`, func(t *testing.T) {
 		c := newFIFO()
 
-		c.GetOrAdd(1)
+		c.GetOrAdd(1, newAddFunc(1, nil))
 		v, ok := c.Get(1)
 		assert.True(t, ok)
 		assert.Equal(t, 1, v)
@@ -143,7 +128,7 @@ func TestFIFO(t *testing.T) {
 			for i := 0; i < concurrentCount; i++ {
 				expected := i
 				go func() {
-					actual, err := c.GetOrAdd(expected)
+					actual, err := c.GetOrAdd(expected, newAddFunc(expected, nil))
 					assert.Equal(t, expected, actual)
 					assert.NoError(t, err)
 

@@ -15,18 +15,9 @@ type tfifo[K comparable, V any] struct {
 	maxAge time.Duration
 }
 
-func TFIFO[K comparable, V any](maxEntries int, maxAge time.Duration, addFunc AddFunc[K, V]) Cache[K, V] {
-	if addFunc == nil {
-		panic(`nil addFunc passed`)
-	}
-
-	wrappedAddFunc := func(key K) (addedValue[V], error) {
-		v, err := addFunc(key)
-		return addedValue[V]{value: v, added: time.Now()}, err
-	}
-
+func TFIFO[K comparable, V any](maxEntries int, maxAge time.Duration) Cache[K, V] {
 	return tfifo[K, V]{
-		fifo:   FIFO(maxEntries, wrappedAddFunc).(*fifo[K, addedValue[V]]),
+		fifo:   FIFO[K, addedValue[V]](maxEntries).(*fifo[K, addedValue[V]]),
 		maxAge: maxAge,
 	}
 }
@@ -50,15 +41,18 @@ func (t tfifo[K, V]) Get(key K) (V, bool) {
 	return v.value.value, true
 }
 
-func (t tfifo[K, V]) GetOrEmpty(key K) V {
-	v, _ := t.Get(key)
-	return v
+func (t tfifo[K, V]) Add(key K, value V) {
+	t.fifo.Add(key, addedValue[V]{
+		value: value,
+		added: time.Now(),
+	})
 }
 
-func (t tfifo[K, V]) GetOrAdd(key K) (V, error) {
+func (t tfifo[K, V]) GetOrAdd(key K, addFunc AddFunc[V]) (V, error) {
 	var empty V
+	wrappedAddFunc := wrapAddFunc(addFunc)
 
-	v, err := t.fifo.GetOrAdd(key)
+	v, err := t.fifo.GetOrAdd(key, wrappedAddFunc)
 	if err != nil {
 		return empty, err
 	}
@@ -68,13 +62,13 @@ func (t tfifo[K, V]) GetOrAdd(key K) (V, error) {
 	}
 
 	t.Delete(key)
-	v, err = t.fifo.GetOrAdd(key)
+	v, err = t.fifo.GetOrAdd(key, wrappedAddFunc)
 
 	return v.value, err
 }
 
-func (t tfifo[K, V]) MustGetOrAdd(key K) V {
-	v, err := t.GetOrAdd(key)
+func (t tfifo[K, V]) MustGetOrAdd(key K, addFunc AddFunc[V]) V {
+	v, err := t.GetOrAdd(key, addFunc)
 	if err != nil {
 		panic(err)
 	}
@@ -82,18 +76,9 @@ func (t tfifo[K, V]) MustGetOrAdd(key K) V {
 	return v
 }
 
-func (t tfifo[K, V]) Delete(key K) {
-	t.Lock()
-	defer t.Unlock()
-
-	v, ok := t.values[key]
-	if !ok {
-		return
+func wrapAddFunc[V any](addFunc AddFunc[V]) AddFunc[addedValue[V]] {
+	return func() (addedValue[V], error) {
+		v, err := addFunc()
+		return addedValue[V]{value: v, added: time.Now()}, err
 	}
-
-	for node := v.element; node != nil; node = node.Next() {
-		delete(t.values, node.Value.key)
-	}
-
-	t.entries.RemoveAllAfter(v.element)
 }

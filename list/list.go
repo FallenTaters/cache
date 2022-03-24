@@ -1,7 +1,6 @@
 /*
 list is a generic version of the "container/list" package
 all unused functions have been commented out
-custom functionality is in custom.go
 */
 package list
 
@@ -21,13 +20,13 @@ type Element[T any] struct {
 	Value T
 }
 
-// Next returns the next list element or nil.
-func (e *Element[T]) Next() *Element[T] {
-	if p := e.next; e.list != nil && p != &e.list.root {
-		return p
-	}
-	return nil
-}
+// // Next returns the next list element or nil.
+// func (e *Element[T]) Next() *Element[T] {
+// 	if p := e.next; e.list != nil && p != &e.list.root {
+// 		return p
+// 	}
+// 	return nil
+// }
 
 // // Prev returns the previous list element or nil.
 // func (e *Element[T]) Prev() *Element[T] {

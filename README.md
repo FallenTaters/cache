@@ -21,14 +21,18 @@ AddFunc is specified for adding new key-value pairs. The cache is not blocked if
 ```go
 package example
 
-import "github.com/FallenTaters/cache"
+import (
+	"time"
+
+	"github.com/FallenTaters/cache"
+)
 
 const (
 	maxEntries = 1000
-    maxAge = time.Hour
+	maxAge     = time.Hour
 )
 
-var itemsCache = cache.TFIFO(maxEntries, maxAge, getItem)
+var itemsCache = cache.TFIFO[int, item](maxEntries, maxAge)
 
 type item struct {
 	id    int
@@ -36,24 +40,31 @@ type item struct {
 	price int
 }
 
-func getItem(id int) (item, error) {
-	// HTTP call, DB Query, etc.
-	return item{}, nil
+func getItem(id int) func() (item, error) {
+	return func() (item, error) {
+		// HTTP call, DB Query, etc.
+		return item{}, nil
+	}
 }
 
 func doStuff() {
-	item, ok := itemsCache.Get(1)
+	// get item only if cached
+	myItem, ok := itemsCache.Get(1)
 	if !ok {
 		// item not cached currently
 	}
 
-	item, err = itemsCache.GetOrAdd(1)
+	// add something to cache manually
+	itemsCache.Add(2, item{})
+
+	// get item from cache, otherwise use AddFunc
+	myItem, err := itemsCache.GetOrAdd(1, getItem(1))
 	if err != nil {
 		// this err comes from addFunc (getItem)
 	}
 
 	// panics if addFunc returns err
-	item = itemsCache.MustGetOrAdd(1)
+	myItem = itemsCache.MustGetOrAdd(1, getItem(1))
 
 	// delete from cache
 	itemsCache.Delete(1)

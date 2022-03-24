@@ -20,19 +20,13 @@ type fifo[K comparable, V any] struct {
 	sync.RWMutex
 
 	maxEntries int
-	addFunc    AddFunc[K, V]
 	entries    *list.List[keyValue[K, V]]
 	values     map[K]listValue[K, V]
 }
 
-func FIFO[K comparable, V any](maxEntries int, addFunc AddFunc[K, V]) Cache[K, V] {
-	if addFunc == nil {
-		panic(`nil addFunc passed`)
-	}
-
+func FIFO[K comparable, V any](maxEntries int) Cache[K, V] {
 	return &fifo[K, V]{
 		maxEntries: maxEntries,
-		addFunc:    addFunc,
 		entries:    list.New[keyValue[K, V]](),
 		values:     make(map[K]listValue[K, V]),
 	}
@@ -46,14 +40,14 @@ func (f *fifo[K, V]) Get(key K) (V, bool) {
 	return v.value, ok
 }
 
-func (f *fifo[K, V]) GetOrEmpty(key K) V {
-	f.RLock()
-	defer f.RUnlock()
+func (f *fifo[K, V]) Add(key K, value V) {
+	f.Lock()
+	defer f.Unlock()
 
-	return f.values[key].value
+	f.add(key, value)
 }
 
-func (f *fifo[K, V]) GetOrAdd(key K) (V, error) {
+func (f *fifo[K, V]) GetOrAdd(key K, addFunc AddFunc[V]) (V, error) {
 	f.RLock()
 	v, ok := f.values[key]
 	f.RUnlock()
@@ -62,16 +56,18 @@ func (f *fifo[K, V]) GetOrAdd(key K) (V, error) {
 		return v.value, nil
 	}
 
-	val, err := f.addFunc(key)
+	val, err := addFunc()
 	if err == nil {
+		f.Lock()
 		f.add(key, val)
+		f.Unlock()
 	}
 
 	return val, err
 }
 
-func (f *fifo[K, V]) MustGetOrAdd(key K) V {
-	v, err := f.GetOrAdd(key)
+func (f *fifo[K, V]) MustGetOrAdd(key K, addFunc AddFunc[V]) V {
+	v, err := f.GetOrAdd(key, addFunc)
 	if err != nil {
 		panic(err)
 	}
@@ -83,6 +79,10 @@ func (f *fifo[K, V]) Delete(key K) {
 	f.Lock()
 	defer f.Unlock()
 
+	f.delete(key)
+}
+
+func (f *fifo[K, V]) delete(key K) {
 	v, ok := f.values[key]
 	if !ok {
 		return
@@ -93,8 +93,7 @@ func (f *fifo[K, V]) Delete(key K) {
 }
 
 func (f *fifo[K, V]) add(key K, value V) {
-	f.Lock()
-	defer f.Unlock()
+	f.delete(key)
 
 	if f.entries.Len() == f.maxEntries {
 		back := f.entries.Back()
