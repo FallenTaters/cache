@@ -3,6 +3,7 @@ package cache_test
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -128,7 +129,7 @@ func TestTFIFO(t *testing.T) {
 		c := newTFIFO()
 
 		var wg sync.WaitGroup
-		count := 0
+		var count int32
 
 		wg.Add(concurrentCount)
 		go func() {
@@ -139,7 +140,7 @@ func TestTFIFO(t *testing.T) {
 					assert.Equal(t, expected, actual)
 					assert.NoError(t, err)
 
-					count++
+					atomic.AddInt32(&count, 1)
 					wg.Done()
 				}()
 			}
@@ -152,7 +153,7 @@ func TestTFIFO(t *testing.T) {
 				go func() {
 					c.Delete(expected)
 
-					count++
+					atomic.AddInt32(&count, 1)
 					wg.Done()
 				}()
 			}
