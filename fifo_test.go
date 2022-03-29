@@ -38,6 +38,16 @@ func TestFIFO(t *testing.T) {
 		assert.Equal(t, 0, v)
 	})
 
+	t.Run(`add and get`, func(t *testing.T) {
+		c := newFIFO()
+
+		c.Add(1, 1)
+
+		v, ok := c.Get(1)
+		assert.True(t, ok)
+		assert.Equal(t, 1, v)
+	})
+
 	t.Run(`get existing`, func(t *testing.T) {
 		c := newFIFO()
 
