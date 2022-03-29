@@ -53,9 +53,9 @@ func TestFIFO(t *testing.T) {
 	t.Run(`only get recently added`, func(t *testing.T) {
 		c := newFIFO()
 
-		c.GetOrAdd(1, newAddFunc(1, nil))
-		c.GetOrAdd(2, newAddFunc(2, nil))
-		c.GetOrAdd(3, newAddFunc(3, nil))
+		_, _ = c.GetOrAdd(1, newAddFunc(1, nil))
+		_, _ = c.GetOrAdd(2, newAddFunc(2, nil))
+		_, _ = c.GetOrAdd(3, newAddFunc(3, nil))
 
 		v, ok := c.Get(1)
 		assert.Equal(t, 0, v)
