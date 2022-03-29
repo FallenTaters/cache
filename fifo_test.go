@@ -106,7 +106,7 @@ func TestFIFO(t *testing.T) {
 	t.Run(`delete`, func(t *testing.T) {
 		c := newFIFO()
 
-		c.GetOrAdd(1, newAddFunc(1, nil))
+		_, _ = c.GetOrAdd(1, newAddFunc(1, nil))
 		v, ok := c.Get(1)
 		assert.True(t, ok)
 		assert.Equal(t, 1, v)
