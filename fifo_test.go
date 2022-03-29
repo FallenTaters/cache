@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/FallenTaters/cache"
 	"github.com/FallenTaters/cache/assert"
@@ -159,5 +160,31 @@ func TestFIFO(t *testing.T) {
 		}()
 
 		wg.Wait()
+	})
+
+	t.Run(`cache stampede prevention`, func(t *testing.T) {
+		c := newFIFO()
+
+		var count int
+		addFunc := func() (int, error) {
+			time.Sleep(10 * time.Millisecond)
+			count++
+			return 1, nil
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(10)
+		for i := 0; i < 10; i++ {
+			go func() {
+				actual, err := c.GetOrAdd(1, addFunc)
+				assert.Equal(t, 1, actual)
+				assert.NoError(t, err)
+
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+
+		assert.Equal(t, 1, count)
 	})
 }
