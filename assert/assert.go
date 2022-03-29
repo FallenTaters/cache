@@ -1,5 +1,6 @@
 /*
-assert should be a standalong go module
+assert is a small assertion library
+it is used to avoid external dependencies
 */
 package assert
 
