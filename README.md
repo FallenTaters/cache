@@ -2,6 +2,8 @@
 
 Simple, generic, threadsafe caches.
 
+[![codecov](https://codecov.io/gh/FallenTaters/cache/branch/master/graph/badge.svg)](https://codecov.io/gh/FallenTaters/cache)
+
 ## FIFO
 
 first in, first out, with a limit on the number of key-value pairs
