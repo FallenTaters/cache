@@ -28,7 +28,7 @@ func calledAddFunc(x int, err error) (func() (int, error), *bool) {
 }
 
 // total goroutines must be below 8_128 for github
-const concurrentCount = 5_000
+const concurrentCount = 4_000
 
 func TestFIFO(t *testing.T) {
 	t.Run(`get non-existing`, func(t *testing.T) {
