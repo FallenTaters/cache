@@ -107,19 +107,19 @@ func (l *List[T]) remove(e *Element[T]) {
 	l.len--
 }
 
-// // move moves e to next to at.
-// func (l *List[T]) move(e, at *Element[T]) {
-// 	if e == at {
-// 		return
-// 	}
-// 	e.prev.next = e.next
-// 	e.next.prev = e.prev
+// move moves e to next to at.
+func (l *List[T]) move(e, at *Element[T]) {
+	if e == at {
+		return
+	}
+	e.prev.next = e.next
+	e.next.prev = e.prev
 
-// 	e.prev = at
-// 	e.next = at.next
-// 	e.prev.next = e
-// 	e.next.prev = e
-// }
+	e.prev = at
+	e.next = at.next
+	e.prev.next = e
+	e.next.prev = e
+}
 
 // Remove removes e from l if e is an element of list l.
 // It returns the element value e.Value.
@@ -167,16 +167,16 @@ func (l *List[T]) PushFront(v T) *Element[T] {
 // 	return l.insertValue(v, mark)
 // }
 
-// // MoveToFront moves element e to the front of list l.
-// // If e is not an element of l, the list is not modified.
-// // The element must not be nil.
-// func (l *List[T]) MoveToFront(e *Element[T]) {
-// 	if e.list != l || l.root.next == e {
-// 		return
-// 	}
-// 	// see comment in List.Remove about initialization of l
-// 	l.move(e, &l.root)
-// }
+// MoveToFront moves element e to the front of list l.
+// If e is not an element of l, the list is not modified.
+// The element must not be nil.
+func (l *List[T]) MoveToFront(e *Element[T]) {
+	if e.list != l || l.root.next == e {
+		return
+	}
+	// see comment in List.Remove about initialization of l
+	l.move(e, &l.root)
+}
 
 // // MoveToBack moves element e to the back of list l.
 // // If e is not an element of l, the list is not modified.
