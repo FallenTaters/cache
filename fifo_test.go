@@ -27,7 +27,8 @@ func calledAddFunc(x int, err error) (func() (int, error), *bool) {
 	}, &called
 }
 
-const concurrentCount = 10_000
+// total goroutines must be below 8_128 for github
+const concurrentCount = 4_000
 
 func TestFIFO(t *testing.T) {
 	t.Run(`get non-existing`, func(t *testing.T) {
@@ -53,9 +54,9 @@ func TestFIFO(t *testing.T) {
 	t.Run(`only get recently added`, func(t *testing.T) {
 		c := newFIFO()
 
-		c.GetOrAdd(1, newAddFunc(1, nil))
-		c.GetOrAdd(2, newAddFunc(2, nil))
-		c.GetOrAdd(3, newAddFunc(3, nil))
+		_, _ = c.GetOrAdd(1, newAddFunc(1, nil))
+		_, _ = c.GetOrAdd(2, newAddFunc(2, nil))
+		_, _ = c.GetOrAdd(3, newAddFunc(3, nil))
 
 		v, ok := c.Get(1)
 		assert.Equal(t, 0, v)
@@ -106,7 +107,7 @@ func TestFIFO(t *testing.T) {
 	t.Run(`delete`, func(t *testing.T) {
 		c := newFIFO()
 
-		c.GetOrAdd(1, newAddFunc(1, nil))
+		_, _ = c.GetOrAdd(1, newAddFunc(1, nil))
 		v, ok := c.Get(1)
 		assert.True(t, ok)
 		assert.Equal(t, 1, v)

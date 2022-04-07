@@ -3,6 +3,7 @@ package cache_test
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -44,10 +45,10 @@ func TestTFIFO(t *testing.T) {
 	t.Run(`only get recently added`, func(t *testing.T) {
 		c := newTFIFO()
 
-		c.GetOrAdd(1, newAddFunc(1, nil))
-		c.GetOrAdd(2, newAddFunc(2, nil))
-		c.GetOrAdd(3, newAddFunc(3, nil))
-		c.GetOrAdd(4, newAddFunc(4, nil))
+		_, _ = c.GetOrAdd(1, newAddFunc(1, nil))
+		_, _ = c.GetOrAdd(2, newAddFunc(2, nil))
+		_, _ = c.GetOrAdd(3, newAddFunc(3, nil))
+		_, _ = c.GetOrAdd(4, newAddFunc(4, nil))
 
 		v, ok := c.Get(1)
 		assert.Equal(t, 0, v)
@@ -102,9 +103,9 @@ func TestTFIFO(t *testing.T) {
 	t.Run(`delete`, func(t *testing.T) {
 		c := newTFIFO()
 
-		c.GetOrAdd(3, newAddFunc(3, nil))
-		c.GetOrAdd(2, newAddFunc(2, nil))
-		c.GetOrAdd(1, newAddFunc(1, nil))
+		_, _ = c.GetOrAdd(3, newAddFunc(3, nil))
+		_, _ = c.GetOrAdd(2, newAddFunc(2, nil))
+		_, _ = c.GetOrAdd(1, newAddFunc(1, nil))
 		v, ok := c.Get(1)
 		assert.True(t, ok)
 		assert.Equal(t, 1, v)
@@ -128,7 +129,7 @@ func TestTFIFO(t *testing.T) {
 		c := newTFIFO()
 
 		var wg sync.WaitGroup
-		count := 0
+		var count int32
 
 		wg.Add(concurrentCount)
 		go func() {
@@ -139,7 +140,7 @@ func TestTFIFO(t *testing.T) {
 					assert.Equal(t, expected, actual)
 					assert.NoError(t, err)
 
-					count++
+					atomic.AddInt32(&count, 1)
 					wg.Done()
 				}()
 			}
@@ -152,7 +153,7 @@ func TestTFIFO(t *testing.T) {
 				go func() {
 					c.Delete(expected)
 
-					count++
+					atomic.AddInt32(&count, 1)
 					wg.Done()
 				}()
 			}
@@ -167,7 +168,7 @@ func TestTFIFO(t *testing.T) {
 		addFunc, called := calledAddFunc(1, nil)
 
 		// Get fails for expired
-		c.GetOrAdd(1, addFunc)
+		_, _ = c.GetOrAdd(1, addFunc)
 		_, ok := c.Get(1)
 		assert.True(t, ok)
 		sleep()
@@ -175,12 +176,12 @@ func TestTFIFO(t *testing.T) {
 		assert.False(t, ok)
 
 		// GetOrAdd calls onlyu after expire
-		c.GetOrAdd(1, addFunc)
+		_, _ = c.GetOrAdd(1, addFunc)
 		*called = false
-		c.GetOrAdd(1, addFunc)
+		_, _ = c.GetOrAdd(1, addFunc)
 		assert.False(t, *called)
 		sleep()
-		c.GetOrAdd(1, addFunc)
+		_, _ = c.GetOrAdd(1, addFunc)
 		assert.True(t, *called)
 	})
 }
