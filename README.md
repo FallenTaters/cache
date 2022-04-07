@@ -10,12 +10,13 @@ first in, first out, with a limit on the number of key-value pairs
 
 ### AddFunc
 
-AddFunc is specified for adding new key-value pairs. The cache is not blocked if addFunc takes a longer time to complete. However, there is currently no functionality that prevents simultaneous calls of AddFunc with the same key.
+AddFunc is specified for adding new key-value pairs. The cache is not blocked if addFunc takes a longer time to complete.
+If GetOrAdd is called multiple times with the same key while another addFunc is still busy, all calls will wait for the first addFunc to return and use that result.
 
 ## TFIFO
 
 * A wrapper around FIFO for time-awareness
-* All key-value pairs share a maximum age, **not** per pair
+* All key-value pairs share a maximum age, **not** specified per pair
 * Performance/Memory Note: Does **not** clean itself passively but checks age on access
 
 ## Example
@@ -76,5 +77,4 @@ func doStuff() {
 
 ## TODO
 
-* add an LRU and TLRU cache
-* make resistant to cache stampede
+* add an LRU (and TLRU) cache

@@ -19,6 +19,8 @@ type listValue[K comparable, V any] struct {
 type fifo[K comparable, V any] struct {
 	sync.RWMutex
 
+	adder addManager[K, V]
+
 	maxEntries int
 	entries    *list.List[keyValue[K, V]]
 	values     map[K]listValue[K, V]
@@ -27,8 +29,11 @@ type fifo[K comparable, V any] struct {
 func FIFO[K comparable, V any](maxEntries int) Cache[K, V] {
 	return &fifo[K, V]{
 		maxEntries: maxEntries,
-		entries:    list.New[keyValue[K, V]](),
-		values:     make(map[K]listValue[K, V]),
+		adder: addManager[K, V]{
+			busyKeys: make(map[K][]chan result[V]),
+		},
+		entries: list.New[keyValue[K, V]](),
+		values:  make(map[K]listValue[K, V]),
 	}
 }
 
@@ -56,14 +61,14 @@ func (f *fifo[K, V]) GetOrAdd(key K, addFunc AddFunc[V]) (V, error) {
 		return v.value, nil
 	}
 
-	val, err := addFunc()
-	if err == nil {
+	result := <-f.adder.waitOrAdd(key, addFunc)
+	if result.Err == nil {
 		f.Lock()
-		f.add(key, val)
+		f.add(key, result.Value)
 		f.Unlock()
 	}
 
-	return val, err
+	return result.Value, result.Err
 }
 
 func (f *fifo[K, V]) MustGetOrAdd(key K, addFunc AddFunc[V]) V {
