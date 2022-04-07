@@ -84,10 +84,6 @@ func (f *fifo[K, V]) Delete(key K) {
 	f.Lock()
 	defer f.Unlock()
 
-	f.delete(key)
-}
-
-func (f *fifo[K, V]) delete(key K) {
 	v, ok := f.values[key]
 	if !ok {
 		return
@@ -98,7 +94,11 @@ func (f *fifo[K, V]) delete(key K) {
 }
 
 func (f *fifo[K, V]) add(key K, value V) {
-	f.delete(key)
+	if v, ok := f.values[key]; ok {
+		v.value = value
+		f.values[key] = v
+		return
+	}
 
 	if f.entries.Len() == f.maxEntries {
 		back := f.entries.Back()

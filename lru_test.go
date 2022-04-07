@@ -10,30 +10,13 @@ import (
 	"github.com/FallenTaters/cache/assert"
 )
 
-func newFIFO() cache.Cache[int, int] {
-	return cache.FIFO[int, int](2)
+func newLRU() cache.Cache[int, int] {
+	return cache.LRU[int, int](2)
 }
 
-func newAddFunc(x int, err error) func() (int, error) {
-	return func() (int, error) {
-		return x, err
-	}
-}
-
-func calledAddFunc(x int, err error) (func() (int, error), *bool) {
-	var called bool
-	return func() (int, error) {
-		called = true
-		return 0, nil
-	}, &called
-}
-
-// total goroutines must be below 8_128 for github
-const concurrentCount = 4_000
-
-func TestFIFO(t *testing.T) {
+func TestLRU(t *testing.T) {
 	t.Run(`get non-existing`, func(t *testing.T) {
-		c := newFIFO()
+		c := newLRU()
 
 		v, ok := c.Get(1)
 		assert.False(t, ok)
@@ -41,7 +24,7 @@ func TestFIFO(t *testing.T) {
 	})
 
 	t.Run(`add and get`, func(t *testing.T) {
-		c := newFIFO()
+		c := newLRU()
 
 		c.Add(1, 1)
 
@@ -51,7 +34,7 @@ func TestFIFO(t *testing.T) {
 	})
 
 	t.Run(`get existing`, func(t *testing.T) {
-		c := newFIFO()
+		c := newLRU()
 
 		v, err := c.GetOrAdd(1, newAddFunc(1, nil))
 		assert.Equal(t, 1, v)
@@ -62,8 +45,8 @@ func TestFIFO(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run(`only get recently added`, func(t *testing.T) {
-		c := newFIFO()
+	t.Run(`last to get added out first`, func(t *testing.T) {
+		c := newLRU()
 
 		_ = c.MustGetOrAdd(1, newAddFunc(1, nil))
 		_ = c.MustGetOrAdd(2, newAddFunc(2, nil))
@@ -82,9 +65,72 @@ func TestFIFO(t *testing.T) {
 		assert.True(t, ok)
 	})
 
+	t.Run(`add to front on get`, func(t *testing.T) {
+		c := newLRU()
+
+		_ = c.MustGetOrAdd(1, newAddFunc(1, nil))
+		_ = c.MustGetOrAdd(2, newAddFunc(2, nil))
+		_, _ = c.Get(1)
+		_ = c.MustGetOrAdd(3, newAddFunc(3, nil))
+
+		v, ok := c.Get(1)
+		assert.Equal(t, 1, v)
+		assert.True(t, ok)
+
+		v, ok = c.Get(2)
+		assert.Equal(t, 0, v)
+		assert.False(t, ok)
+
+		v, ok = c.Get(3)
+		assert.Equal(t, 3, v)
+		assert.True(t, ok)
+	})
+
+	t.Run(`add to front on getOrAdd`, func(t *testing.T) {
+		c := newLRU()
+
+		_ = c.MustGetOrAdd(1, newAddFunc(1, nil))
+		_ = c.MustGetOrAdd(2, newAddFunc(2, nil))
+		_ = c.MustGetOrAdd(1, newAddFunc(1, nil))
+		_ = c.MustGetOrAdd(3, newAddFunc(3, nil))
+
+		v, ok := c.Get(1)
+		assert.Equal(t, 1, v)
+		assert.True(t, ok)
+
+		v, ok = c.Get(2)
+		assert.Equal(t, 0, v)
+		assert.False(t, ok)
+
+		v, ok = c.Get(3)
+		assert.Equal(t, 3, v)
+		assert.True(t, ok)
+	})
+
+	t.Run(`add to front on add`, func(t *testing.T) {
+		c := newLRU()
+
+		_ = c.MustGetOrAdd(1, newAddFunc(1, nil))
+		_ = c.MustGetOrAdd(2, newAddFunc(2, nil))
+		c.Add(1, 1)
+		_ = c.MustGetOrAdd(3, newAddFunc(3, nil))
+
+		v, ok := c.Get(1)
+		assert.Equal(t, 1, v)
+		assert.True(t, ok)
+
+		v, ok = c.Get(2)
+		assert.Equal(t, 0, v)
+		assert.False(t, ok)
+
+		v, ok = c.Get(3)
+		assert.Equal(t, 3, v)
+		assert.True(t, ok)
+	})
+
 	t.Run(`return error`, func(t *testing.T) {
 		myErr := errors.New(`myErr`)
-		c := newFIFO()
+		c := newLRU()
 
 		_, err := c.GetOrAdd(1, newAddFunc(0, myErr))
 		assert.ErrorIs(t, myErr, err)
@@ -97,13 +143,13 @@ func TestFIFO(t *testing.T) {
 			assert.ErrorIs(t, myErr, v.(error))
 		}()
 
-		c := newFIFO()
+		c := newLRU()
 
 		c.MustGetOrAdd(1, newAddFunc(0, myErr))
 	})
 
 	t.Run(`only call addFunc when necessary`, func(t *testing.T) {
-		c := newFIFO()
+		c := newLRU()
 
 		addFunc, called := calledAddFunc(1, nil)
 
@@ -116,7 +162,7 @@ func TestFIFO(t *testing.T) {
 	})
 
 	t.Run(`delete`, func(t *testing.T) {
-		c := newFIFO()
+		c := newLRU()
 
 		_ = c.MustGetOrAdd(1, newAddFunc(1, nil))
 		v, ok := c.Get(1)
@@ -131,7 +177,7 @@ func TestFIFO(t *testing.T) {
 	})
 
 	t.Run(`concurrent operations`, func(t *testing.T) {
-		c := newFIFO()
+		c := newLRU()
 
 		var wg sync.WaitGroup
 
@@ -164,7 +210,7 @@ func TestFIFO(t *testing.T) {
 	})
 
 	t.Run(`cache stampede prevention`, func(t *testing.T) {
-		c := newFIFO()
+		c := newLRU()
 
 		var count int
 		addFunc := func() (int, error) {
