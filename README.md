@@ -1,6 +1,6 @@
 # Cache
 
-Simple, generic, threadsafe caches.
+Simple, generic, threadsafe key-value caches.
 
 [![codecov](https://codecov.io/gh/FallenTaters/cache/branch/master/graph/badge.svg)](https://codecov.io/gh/FallenTaters/cache)
 
@@ -8,14 +8,18 @@ Simple, generic, threadsafe caches.
 
 first in, first out, with a limit on the number of key-value pairs
 
+## LRU
+
+least recently used, with a limit on the number of key-value pairs
+
 ### AddFunc
 
 AddFunc is specified for adding new key-value pairs. The cache is not blocked if addFunc takes a longer time to complete.
 If GetOrAdd is called multiple times with the same key while another addFunc is still busy, all calls will wait for the first addFunc to return and use that result.
 
-## TFIFO
+## TFIFO and TLRU
 
-* A wrapper around FIFO for time-awareness
+* A wrapper around FIFO or LRU for time-awareness
 * All key-value pairs share a maximum age, **not** specified per pair
 * Performance/Memory Note: Does **not** clean itself passively but checks age on access
 
@@ -77,4 +81,4 @@ func doStuff() {
 
 ## TODO
 
-* add an LRU (and TLRU) cache
+* add an automatic (optional?) clean routine to TLRU to avoid rejecting valid data because expired data is cluttering the queue
