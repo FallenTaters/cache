@@ -23,7 +23,7 @@ func LRU[K comparable, V any](maxEntries int) Cache[K, V] {
 			busyKeys: make(map[K][]chan result[V]),
 		},
 		entries: list.New[keyValue[K, V]](),
-		values:  make(map[K]listValue[K, V]),
+		values:  make(map[K]listValue[K, V], maxEntries),
 	}
 }
 
